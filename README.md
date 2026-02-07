@@ -13,7 +13,7 @@ QBTable is a solution written for the take home assignment from Quickbase.
 
 ```bash
 # Clone or navigate to the project directory
-cd QuckBase_Demo
+cd QuickbaseDemo
 
 # Create and enter build directory
 mkdir build
@@ -53,4 +53,4 @@ cmake --build . --config Release
 
 ## Running Tests
 
-The binary runs benchmark unit tests
+The binary qucikbase_interview_demo runs benchmark unit tests
