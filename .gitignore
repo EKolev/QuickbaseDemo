@@ -1,0 +1,36 @@
+# CMake build directories
+build/
+cmake_build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+bin/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Compiled output
+main
+main.exe
+main.dSYM/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
