@@ -211,7 +211,7 @@ namespace db
     {
         // 1. Lookup record index via primary key
         auto pkIt = pkIndex_.find(id);
-        if (pkIt == pkIndex_.end() || pkIt->second == 0)
+        if (pkIt == pkIndex_.end())
             return false;
 
         size_t recordIdx = pkIt->second;
