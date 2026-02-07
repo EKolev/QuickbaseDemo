@@ -1,6 +1,6 @@
 # QBTable: An In-Memory Database with Adaptive Indexing
 
-QBTable is a high-performance, thread-safe in-memory database library written in modern C++. It provides a `QBRecord`-based table with adaptive indexing—automatically manage primary key indexes (O(1) lookups) and create/drop secondary indexes on demand for optimized query performance. The design supports soft deletion with automatic compaction, record updates, and fall back to linear scan for non-indexed columns. Ideal for scenarios requiring fast exact-match queries over in-memory datasets with minimal memory overhead when indexes are not needed.
+QBTable is a solution written for the take home assignment from Quickbase.
 
 ## Build Instructions
 
@@ -53,12 +53,4 @@ cmake --build . --config Release
 
 ## Running Tests
 
-The binary runs comprehensive unit tests covering:
-- Basic record operations (add, find, delete)
-- Query error handling (parse errors vs. empty results)
-- Soft deletion and automatic compaction
-- Record updates with index maintenance
-- Index creation, dropping, and performance verification
-- Edge cases (empty tables, invalid columns)
-
-Followed by performance benchmarks comparing baseline linear scan implementations against indexed lookups.
+The binary runs benchmark unit tests

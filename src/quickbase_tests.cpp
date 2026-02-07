@@ -20,23 +20,12 @@
 // ORIGINAL IMPLEMENTATION (BASE/REFERENCE)
 // ============================================================================
 
-/**
-    Represents a Record Object
-*/
-struct QBRecord
-{
-    uint column0; // unique id column
-    std::string column1;
-    long column2;
-    std::string column3;
-};
-
-typedef std::vector<QBRecord> QBRecordCollection;
+typedef std::vector<db::QBRecord> QBRecordCollection;
 
 QBRecordCollection QBFindMatchingRecords(const QBRecordCollection& records, const std::string& columnName, const std::string& matchString)
     {
     QBRecordCollection result;
-    std::copy_if(records.begin(), records.end(), std::back_inserter(result), [&](const QBRecord& rec){
+    std::copy_if(records.begin(), records.end(), std::back_inserter(result), [&](const db::QBRecord& rec){
         if (columnName == "column0") {
             unsigned long matchValue = std::stoul(matchString);
             return matchValue == rec.column0;
@@ -65,7 +54,7 @@ QBRecordCollection populateDummyData(const std::string& prefix, uint numRecords)
     data.reserve(numRecords);
     for (uint i = 0; i < numRecords; i++)
         {
-        QBRecord rec = { i, prefix + std::to_string(i), i % 100, std::to_string(i) + prefix };
+        db::QBRecord rec = { i, prefix + std::to_string(i), i % 100, std::to_string(i) + prefix };
         data.emplace_back(rec);
         }
     return data;
@@ -133,7 +122,7 @@ void runBenchmarks()
         }
         auto elapsed = steady_clock::now() - startTimer;
         double timeMs = double(elapsed.count()) * steady_clock::period::num / steady_clock::period::den * 1000;
-        results.push_back({"Base Implementation", timeMs, 1, "Linear scan O(n)"});
+        results.push_back({"Base Implementation", timeMs, 1, "\t(queries: 100)"});
         
         
         // QBTable implementation (with dedicated primary key index)
@@ -144,14 +133,14 @@ void runBenchmarks()
         }
         elapsed = steady_clock::now() - startTimer;
         timeMs = double(elapsed.count()) * steady_clock::period::num / steady_clock::period::den * 1000;
-        results.push_back({"QBTable (Two-Tier Index)", timeMs, 1, "Dedicated PK hash O(1)"});
+        results.push_back({"QBTable (Secondary Index)", timeMs, 1, "\t(queries: 100)"});
         
         // print results
         for (const auto& r : results)
         {
             std::cout << "  " << std::left << std::setw(30) << r.name 
                       << std::setw(12) << std::fixed << std::setprecision(3) << r.timeMs << " ms"
-                      << "  (" << r.details << ")" << std::endl;
+                      <<  r.details << std::endl;
         }
  
         double speedupQBTable = results[0].timeMs / results[1].timeMs;
@@ -159,7 +148,7 @@ void runBenchmarks()
     }
     
     // ========== TEST 2: Exact Match on Another Numeric Column (column2) ==========
-    std::cout << "TEST 2: Exact Match Query on Another Numeric Column (column2)" << std::endl;
+    std::cout << "TEST 2: Exact Match Query on Secondary Indexed Numeric Column (column2)" << std::endl;
     std::cout << "-" << std::string(76, '-') << std::endl;
     
     {
@@ -173,7 +162,7 @@ void runBenchmarks()
         }
         auto elapsed = steady_clock::now() - startTimer;
         double timeMs = double(elapsed.count()) * steady_clock::period::num / steady_clock::period::den * 1000;
-        results.push_back({"Base Implementation", timeMs, 1000, "Linear scan O(n)"});
+        results.push_back({"Base Implementation", timeMs, ITERATIONS, ""});
         
         
         // QBTable implementation (with secondary index)
@@ -184,14 +173,14 @@ void runBenchmarks()
         }
         elapsed = steady_clock::now() - startTimer;
         timeMs = double(elapsed.count()) * steady_clock::period::num / steady_clock::period::den * 1000;
-        results.push_back({"QBTable (Two-Tier Index)", timeMs, 1000, "Secondary map index O(log n)"});
+        results.push_back({"QBTable (Secondary Index)", timeMs, ITERATIONS, ""});
         
         // print results
         for (const auto& r : results)
         {
             std::cout << "  " << std::left << std::setw(30) << r.name 
                       << std::setw(12) << std::fixed << std::setprecision(3) << r.timeMs << " ms"
-                      << "  (matches: " << r.resultCount << ", " << r.details << ")" << std::endl;
+                      << "  (queries: " << r.resultCount << r.details << ")" << std::endl;
         }
         
         double speedupQBTable = results[0].timeMs / results[1].timeMs;
@@ -213,7 +202,7 @@ void runBenchmarks()
         }
         auto elapsed = steady_clock::now() - startTimer;
         double timeMs = double(elapsed.count()) * steady_clock::period::num / steady_clock::period::den * 1000;
-        results.push_back({"Base Implementation", timeMs, 100, "Linear scan O(n*m) (no index)"});
+        results.push_back({"Base Implementation", timeMs, 100, ""});
         
         
         // QBTable implementation (no index for substring search)
@@ -224,15 +213,16 @@ void runBenchmarks()
         }
         elapsed = steady_clock::now() - startTimer;
         timeMs = double(elapsed.count()) * steady_clock::period::num / steady_clock::period::den * 1000;
-        results.push_back({"QBTable (No Index)", timeMs, 100, "Linear scan O(n*m) (fallback)"});
+        results.push_back({"QBTable (No Index)", timeMs, 100, ""});
         
         // print results
         for (const auto& r : results)
         {
             std::cout << "  " << std::left << std::setw(30) << r.name 
                       << std::setw(12) << std::fixed << std::setprecision(3) << r.timeMs << " ms"
-                      << "  (matches: " << r.resultCount << ")" << std::endl;
+                      << "  (queries: " << r.resultCount << ")" << std::endl;
         }
+        std::cout << std::endl;
     }
     
     // ========== TEST 4: DeleteRecordByID and Requery ==========
@@ -246,7 +236,6 @@ void runBenchmarks()
             db::QBRecord dbRec = {rec.column0, rec.column1, rec.column2, rec.column3};
             testDataQBTable.addRecord(dbRec);
         }
-        testDataQBTable.createIndex(db::ColumnType::COLUMN0);
         testDataQBTable.createIndex(db::ColumnType::COLUMN2);
         
         std::cout << "  Initial state (QBTable):" << std::endl;
@@ -285,38 +274,7 @@ void runBenchmarks()
         
         std::cout << "\n  ✓ All deletion tests passed\n" << std::endl;
     }
-    
-    // ========== TEST 5: Memory Layout Analysis ==========
-    std::cout << "TEST 5: Memory Layout and Data Structure Analysis" << std::endl;
-    std::cout << "-" << std::string(76, '-') << std::endl;
-    
-    {
-        std::cout << "  QBRecord structure size: " << sizeof(QBRecord) << " bytes" << std::endl;
-        std::cout << "    - column0 (uint): " << sizeof(uint) << " bytes" << std::endl;
-        std::cout << "    - column1 (string): " << sizeof(std::string) << " bytes (ptr + size + capacity)" << std::endl;
-        std::cout << "    - column2 (long): " << sizeof(long) << " bytes" << std::endl;
-        std::cout << "    - column3 (string): " << sizeof(std::string) << " bytes (ptr + size + capacity)" << std::endl;
-        
-        std::cout << "\n  Memory usage for " << DATA_SIZE << " records:" << std::endl;
-        
-        size_t baseVectorSize = sizeof(QBRecord) * DATA_SIZE;
-        std::cout << "    - Base vector (QBRecordCollection):" << std::endl;
-        std::cout << "      Data size: ~" << baseVectorSize / 1024 << " KB (record arrays only)" << std::endl;
-        std::cout << "      String storage: Variable (depends on string content)" << std::endl;
-        
-        std::cout << "\n    - Optimized collection overhead:" << std::endl;
-        std::cout << "      Primary vector: ~" << baseVectorSize / 1024 << " KB" << std::endl;
-        std::cout << "      Deleted flags vector: ~" << DATA_SIZE / 1024 << " KB" << std::endl;
-        std::cout << "      Index for column0 (unordered_map): ~" << DATA_SIZE * 48 / 1024 << " KB (estimated)" << std::endl;
-        std::cout << "      Index for column2 (unordered_map): ~" << 100 * 48 / 1024 << " KB (estimated, ~100 unique values)" << std::endl;
-        std::cout << "      Total overhead: ~40-50% of base data size" << std::endl;
-        
-        std::cout << "\n  Cache-friendliness:" << std::endl;
-        std::cout << "    - Base: Excellent (sequential vector traversal)" << std::endl;
-        std::cout << "    - Optimized: Good for indexed lookups, excellent for filtered scans" << std::endl;
-        std::cout << "             Trade-off: Hash table lookups vs vector sequential access\n" << std::endl;
-    }
-    
+
     std::cout << std::string(80, '=') << std::endl;
     std::cout << "TESTS COMPLETED SUCCESSFULLY" << std::endl;
     std::cout << std::string(80, '=') << std::endl;
