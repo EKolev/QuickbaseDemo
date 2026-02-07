@@ -36,12 +36,13 @@ namespace db
     private:
         // container memebers
         std::vector<QBRecord> records_;
+        // deleted_ - parallel vector to records_ for soft deletion tracking
         std::vector<bool> deleted_;
         // pkIndex_ - pk indexing
         std::unordered_map<uint, size_t> pkIndex_;
         // secondaryIndexedColumns_ - track which non-pk columns are indexed
         std::set<ColumnType> secondaryIndexedColumns_;
-        // IndexKey - typed key for indexes
+        // IndexKey - typed key for secondary indexed columns, supports multiple types of columns
         using IndexKey = std::variant<uint, long, std::string>;
         // secondaryIndexes_ - index for secondary-indexed columns: (columnID, IndexKey) -> record indices
         std::map<std::pair<ColumnType, IndexKey>, std::vector<size_t>> secondaryIndexes_;
@@ -87,9 +88,7 @@ namespace db
     };
 
     /**
-        Convert string column name to ColumnType enum
-        @param columnName: Column name as string ("column0", "column1", etc.)
-        @return: ColumnType enum value, or std::nullopt if invalid
+    * Convert string column name to ColumnType enum
     */
     inline std::optional<ColumnType> stringToColumnType(std::string_view columnName) noexcept
     {

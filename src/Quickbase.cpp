@@ -70,7 +70,7 @@ namespace db
         }
     }
 
-    /**
+    /*
      * Remove all secondary index entries for a specific column
      */
     void QBTable::removeSecondaryIndexForColumn(ColumnType columnID)
@@ -85,7 +85,7 @@ namespace db
         }
     }
 
-    /**
+    /*
      * Linear scan fallback for non-indexed columns
      */
     std::vector<QBRecord> QBTable::linearScan(ColumnType columnID, std::string_view matchString) const
@@ -137,11 +137,10 @@ namespace db
         return result;
     }
 
-    /**
+    /*
      * Create an index on a specific column
      * Important!!! - Column0 (primary key) is always indexed for O(1) performance
      * Other columns can be optionally indexed for faster queries
-     * Future queries on indexed columns will use the index
      */
     void QBTable::createIndex(ColumnType columnID)
     {
@@ -205,11 +204,10 @@ namespace db
 
     /**
      * Delete a record by its unique ID (column0)
-     * O(1) operation using primary key index and soft deletion
      */
     bool QBTable::deleteRecordByID(uint id, bool hardDelete)
     {
-        // 1. Lookup record index via primary key
+        // lookup record index via primary key
         auto pkIt = pkIndex_.find(id);
         if (pkIt == pkIndex_.end())
             return false;
@@ -263,7 +261,7 @@ namespace db
 
     /**
      * Find matching records by column type and value
-     * Uses primary key index for COLUMN0 O(1), secondary indexes for other columns O(log n),
+     * Uses primary key index for COLUMN0, secondary indexes for other columns,
      * or falls back to linear scan for non-indexed columns
      */
     std::vector<QBRecord> QBTable::findMatching(ColumnType columnID, std::string_view matchString) const
@@ -336,14 +334,14 @@ namespace db
      */
     std::vector<QBRecord> QBTable::findMatching(std::string_view columnName, std::string_view matchString) const
     {
-        auto columnOpt = db::stringToColumnType(columnName);
+        auto columnOpt = stringToColumnType(columnName);
         if (!columnOpt.has_value())
             return {};
         return findMatching(columnOpt.value(), matchString);
     }
 
     /**
-     * Get count of active (non-deleted) records
+     * Get count of active records
      */
     size_t QBTable::activeRecordsCount() const noexcept
     {
@@ -363,7 +361,7 @@ namespace db
 
     /**
      * Compact the collection by removing deleted records
-     * Rebuilds all indexes (primary and secondary) with new positions
+     * Rebuilds primary and secondary indexes with new positions
      */
     void QBTable::compactRecords()
     {
