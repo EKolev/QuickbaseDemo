@@ -5,6 +5,132 @@
 // Quickbase database definitions
 namespace db
 {
+    /**
+     * Find matching records by column type and value
+     * Uses primary key index for COLUMN0, secondary indexes for other columns,
+     * or falls back to linear scan for non-indexed columns
+     */
+    std::vector<QBRecord> QBTable::findMatching(ColumnType columnID, std::string_view matchString) const
+    {
+        std::vector<QBRecord> result;
+        // handle queries on primary key
+        if (columnID == ColumnType::COLUMN0)
+        {
+            uint matchValue = 0;
+            auto convResult = std::from_chars(matchString.data(), matchString.data() + matchString.size(), matchValue);
+            // check if no error and entire string was consumed
+            if (convResult.ec != std::errc{} || convResult.ptr != matchString.data() + matchString.size())
+                return {}; // Invalid conversion
+
+            auto it = pkIndex_.find(matchValue);
+            if (it == pkIndex_.end())
+                return {}; // No matches
+
+            result.push_back(records_[it->second]);
+
+            return result;
+        }
+
+        // handle queries on non-pk columns - secondery indexed
+        if (secondaryIndexedColumns_.contains(columnID))
+        {
+            // Build typed key from matchString depending on column type
+            IndexKey lookupKey;
+            switch (columnID)
+            {
+            case ColumnType::COLUMN1:
+            case ColumnType::COLUMN3:
+                lookupKey = std::string(matchString);
+                break;
+            case ColumnType::COLUMN2:
+            {
+                long v = 0;
+                auto convResult = std::from_chars(matchString.data(), matchString.data() + matchString.size(), v);
+                // check if no error and entire string was consumed
+                if (convResult.ec != std::errc{} || convResult.ptr != matchString.data() + matchString.size())
+                    return {};
+                lookupKey = v;
+            }
+            break;
+            default:
+                lookupKey = std::string(matchString);
+                break;
+            }
+
+            auto it = secondaryIndexes_.find({columnID, lookupKey});
+            if (it == secondaryIndexes_.end())
+                return {}; // No match found
+
+            for (size_t idx : it->second)
+            {
+                if (!deleted_[idx])
+                    result.push_back(records_[idx]);
+            }
+            return result;
+        }
+        else
+        {
+            // fall back to linear scan for non-indexed columns
+            return linearScan(columnID, matchString);
+        }
+    }
+
+    /**
+     * Delete a record by its unique ID - primary key column0
+     */
+    bool QBTable::deleteRecordByID(uint id, bool hardDelete)
+    {
+        // lookup record index via primary key
+        auto pkIt = pkIndex_.find(id);
+        if (pkIt == pkIndex_.end())
+            return false;
+
+        size_t recordIdx = pkIt->second;
+
+        // already deleted (for soft delete)
+        if (!hardDelete && deleted_[recordIdx])
+            return false;
+
+        // soft delete
+        if (!hardDelete)
+        {
+
+            deleted_[recordIdx] = true;
+
+            // remove from PK index
+            pkIndex_.erase(pkIt);
+
+            // remove from secondary indexes
+            for (auto it = secondaryIndexes_.begin(); it != secondaryIndexes_.end();)
+            {
+                auto &indices = it->second;
+                indices.erase(std::remove(indices.begin(), indices.end(), recordIdx), indices.end());
+                if (indices.empty())
+                    it = secondaryIndexes_.erase(it);
+                else
+                    ++it;
+            }
+        }
+        else // hard delete
+        {
+            size_t lastIdx = records_.size() - 1;
+
+            // swap the record to delete with the last record
+            std::swap(records_[recordIdx], records_[lastIdx]);
+            std::swap(deleted_[recordIdx], deleted_[lastIdx]);
+
+            // remove last record
+            records_.pop_back();
+            deleted_.pop_back();
+
+            // rebuild all indexes for safety
+            rebuildPrimaryKeyIndex();
+            for (const ColumnType colID : secondaryIndexedColumns_)
+                rebuildSecondaryIndexForColumn(colID);
+        }
+
+        return true;
+    }
 
     /**
      * Convert column value to IndexKey for generic indexing
@@ -29,7 +155,7 @@ namespace db
         case ColumnType::COLUMN3:
             return rec.column3;
         case ColumnType::COLUMN0:
-            // Primary key column is always indexed separately - should never reach here
+            throw std::logic_error("COLUMN0 should not be used in getColumnIndexKey");
         }
         return std::string{};
     }
@@ -109,9 +235,11 @@ namespace db
             case ColumnType::COLUMN2:
             {
                 long matchValue = 0;
-                auto result = std::from_chars(matchString.data(), matchString.data() + matchString.size(), matchValue);
-                if (result.ec == std::errc{})
-                    matches = (rec.column2 == matchValue);
+                auto convResult = std::from_chars(matchString.data(), matchString.data() + matchString.size(), matchValue);
+                // check if no error and entire string was consumed
+                if (convResult.ec != std::errc{} || convResult.ptr != matchString.data() + matchString.size())
+                    return {};
+                matches = (rec.column2 == matchValue);
             }
             break;
 
@@ -140,12 +268,11 @@ namespace db
         // if column is already indexed, or is primary key
         if (columnID == ColumnType::COLUMN0 || secondaryIndexedColumns_.contains(columnID))
             return;
-        else{
+        else
+        {
             secondaryIndexedColumns_.insert(columnID);
             rebuildSecondaryIndexForColumn(columnID);
         }
-
-
     }
 
     /**
@@ -195,140 +322,14 @@ namespace db
     }
 
     /**
-     * Delete a record by its unique ID - primary key column0
-     */
-    bool QBTable::deleteRecordByID(uint id, bool hardDelete)
-    {
-        // lookup record index via primary key
-        auto pkIt = pkIndex_.find(id);
-        if (pkIt == pkIndex_.end())
-            return false;
-
-        size_t recordIdx = pkIt->second;
-
-        // already deleted (for soft delete)
-        if (!hardDelete && deleted_[recordIdx])
-            return false;
-
-        // soft delete
-        if (!hardDelete)
-        {
-            
-            deleted_[recordIdx] = true;
-
-            // remove from PK index
-            pkIndex_.erase(pkIt);
-
-            // remove from secondary indexes
-            for (auto it = secondaryIndexes_.begin(); it != secondaryIndexes_.end();)
-            {
-                auto &indices = it->second;
-                indices.erase(std::remove(indices.begin(), indices.end(), recordIdx), indices.end());
-                if (indices.empty())
-                    it = secondaryIndexes_.erase(it);
-                else
-                    ++it;
-            }
-        }
-        else // hard delete
-        {
-            size_t lastIdx = records_.size() - 1;
-
-            // swap the record to delete with the last record
-            std::swap(records_[recordIdx], records_[lastIdx]);
-            std::swap(deleted_[recordIdx], deleted_[lastIdx]);
-
-            // remove last record
-            records_.pop_back();
-            deleted_.pop_back();
-
-            // rebuild all indexes for safety
-            rebuildPrimaryKeyIndex();
-            for (const ColumnType colID : secondaryIndexedColumns_)
-                rebuildSecondaryIndexForColumn(colID);
-        }
-
-        return true;
-    }
-
-    /**
-     * Find matching records by column type and value
-     * Uses primary key index for COLUMN0, secondary indexes for other columns,
-     * or falls back to linear scan for non-indexed columns
-     */
-    std::vector<QBRecord> QBTable::findMatching(ColumnType columnID, std::string_view matchString) const
-    {
-        // handle queries on primary key
-        if (columnID == ColumnType::COLUMN0)
-        {
-            uint matchValue = 0;
-            auto convResult = std::from_chars(matchString.data(), matchString.data() + matchString.size(), matchValue);
-            if (convResult.ec != std::errc{})
-                return {}; // Invalid conversion
-
-            auto it = pkIndex_.find(matchValue);
-            if (it == pkIndex_.end())
-                return {}; // No matches
-
-            std::vector<QBRecord> result;
-            if (!deleted_[it->second])
-                result.push_back(records_[it->second]);
-
-            return result;
-        }
-
-        // handle queries on non-pk columns - secondery indexed
-        if (secondaryIndexedColumns_.contains(columnID))
-        {
-            // Build typed key from matchString depending on column type
-            IndexKey lookupKey;
-            switch (columnID)
-            {
-            case ColumnType::COLUMN1:
-            case ColumnType::COLUMN3:
-                lookupKey = std::string(matchString);
-                break;
-            case ColumnType::COLUMN2:
-            {
-                long v = 0;
-                auto result = std::from_chars(matchString.data(), matchString.data() + matchString.size(), v);
-                if (result.ec != std::errc{})
-                    return {};
-                lookupKey = v;
-            }
-            break;
-            default:
-                lookupKey = std::string(matchString);
-                break;
-            }
-
-            auto it = secondaryIndexes_.find({columnID, lookupKey});
-            if (it == secondaryIndexes_.end())
-                return {}; // No match found
-
-            std::vector<QBRecord> result;
-            for (size_t idx : it->second)
-            {
-                if (!deleted_[idx])
-                    result.push_back(records_[idx]);
-            }
-            return result;
-        }
-        else
-        {
-            // fall back to linear scan for non-indexed columns
-            return linearScan(columnID, matchString);
-        }
-    }
-
-    /**
      * Get count of active records
      */
     size_t QBTable::activeRecordsCount() const noexcept
     {
         size_t count = 0;
-        for (bool del : deleted_) 
-            if (!del) count++;
+        for (bool del : deleted_)
+            if (!del)
+                count++;
         return count;
     }
 
