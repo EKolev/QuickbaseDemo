@@ -80,7 +80,6 @@ namespace db
         // query info
         size_t activeRecordsCount() const noexcept;
         size_t totalRecordsCount() const noexcept;
-        
 
         // direct access for testing
         const std::vector<QBRecord> &getRecords() const;
@@ -94,14 +93,20 @@ namespace db
     */
     inline std::optional<ColumnType> stringToColumnType(std::string_view columnName) noexcept
     {
-        if (columnName == "column0")
+        if (columnName.size() != 7 || columnName.compare(0, 6, "column") != 0)
+            return std::nullopt;
+        switch (columnName[6])
+        {
+        case '0':
             return ColumnType::COLUMN0;
-        if (columnName == "column1")
+        case '1':
             return ColumnType::COLUMN1;
-        if (columnName == "column2")
+        case '2':
             return ColumnType::COLUMN2;
-        if (columnName == "column3")
+        case '3':
             return ColumnType::COLUMN3;
-        return std::nullopt;
+        default:
+            return std::nullopt;
+        }
     }
 }
