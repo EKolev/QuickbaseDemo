@@ -10,7 +10,7 @@
 #include <memory>
 #include <iomanip>
 #include <optional>
-#include "./Quickbase.hpp"
+#include "../include/Quickbase.hpp"
 
 #define DATA_SIZE 100000
 #define ITERATIONS 100

@@ -16,8 +16,8 @@ QBTable is a high-performance, thread-safe in-memory database library written in
 cd QuckBase_Demo
 
 # Create and enter build directory
-mkdir cmake_build
-cd cmake_build
+mkdir build
+cd build
 
 # Configure and build
 cmake ..

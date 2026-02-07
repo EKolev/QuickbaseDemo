@@ -105,8 +105,8 @@ endif()
 
 # Add the main executable
 add_executable(qbtable_main
-    main.cpp
-    Quickbase.cpp
+    src/quickbase_tests.cpp
+    src/Quickbase.cpp
 )
 
 # Set output directory
@@ -120,7 +120,7 @@ target_compile_features(qbtable_main PRIVATE cxx_std_20)
 
 # Include directories (public headers)
 target_include_directories(qbtable_main PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 # ============================================================================
