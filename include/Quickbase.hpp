@@ -89,10 +89,11 @@ namespace db
 
     /**
     * Convert string column name to ColumnType enum
+    * only used to support backward-compatible findMatching with string column names, not intended for general use
     */
     inline std::optional<ColumnType> stringToColumnType(std::string_view columnName) noexcept
     {
-        if (columnName.size() != 7 || columnName.compare(0, 6, "column") != 0)
+        if (columnName.size() <= 7 || columnName.compare(0, 6, "column") != 0)
             return std::nullopt;
         switch (columnName[6])
         {

@@ -7,7 +7,7 @@ namespace db
 {
 
     /**
-     * Convert column value to string for generic indexing
+     * Convert column value to IndexKey for generic indexing
      * This allows us to use a single index for all column types
      */
     QBTable::IndexKey QBTable::getColumnIndexKey(size_t recordIdx, ColumnType columnID) const
@@ -102,16 +102,6 @@ namespace db
 
             switch (columnID)
             {
-            case ColumnType::COLUMN0:
-                // primary key is unique - return immediately on first match
-                {
-                    uint matchValue = 0;
-                    auto result = std::from_chars(matchString.data(), matchString.data() + matchString.size(), matchValue);
-                    if (result.ec == std::errc{} && rec.column0 == matchValue)
-                        return {rec}; // Found the unique PK, return immediately
-                }
-                break;
-
             case ColumnType::COLUMN1:
                 matches = (rec.column1.find(matchString) != std::string::npos);
                 break;
@@ -127,6 +117,9 @@ namespace db
 
             case ColumnType::COLUMN3:
                 matches = (rec.column3.find(matchString) != std::string::npos);
+                break;
+            case ColumnType::COLUMN0:
+                // Should never reach here - COLUMN0 is always indexed
                 break;
             }
 
