@@ -6,8 +6,7 @@
 #include <string>
 #include <string_view>
 #include <variant>
-#include <optional>
-#include <limits>
+
 // Quickbase database declarations
 namespace db
 {
