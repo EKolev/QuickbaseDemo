@@ -116,7 +116,7 @@ void runBenchmarks()
     qbTable.createIndex(db::ColumnType::COLUMN2);
     
     std::cout << "  - Records in base QB database implementation: " << baseData.size() << std::endl;
-    std::cout << "  - QBTable Active Records: " << qbTable.activeRecordCount() << std::endl;
+    std::cout << "  - QBTable Active Records: " << qbTable.activeRecordsCount() << std::endl;
     std::cout << std::endl;
     
     // ========== TEST 1: Exact Match on Numeric Column (column0) ==========
@@ -274,14 +274,14 @@ void runBenchmarks()
         auto allDeletedQB = testDataQBTable.findMatching(db::ColumnType::COLUMN2, "4");
         std::cout << "  After deleting records with IDs 200-204:" << std::endl;
         std::cout << "    QBTable - Records with column2=4: " << allDeletedQB.size() << std::endl;
-        std::cout << "    QBTable - Active count: " << testDataQBTable.activeRecordCount() << " / " << testDataQBTable.totalRecordCount() << std::endl;
+        std::cout << "    QBTable - Active count: " << testDataQBTable.activeRecordsCount() << " / " << testDataQBTable.totalRecordsCount() << std::endl;
         
         // Test compaction
-        size_t beforeCompactQB = testDataQBTable.totalRecordCount();
+        size_t beforeCompactQB = testDataQBTable.totalRecordsCount();
         testDataQBTable.compactRecords();
         std::cout << "  After compactRecords():" << std::endl;
-        std::cout << "    QBTable - Total records: " << beforeCompactQB << " -> " << testDataQBTable.totalRecordCount() << std::endl;
-        std::cout << "    QBTable - Active records: " << testDataQBTable.activeRecordCount() << std::endl;
+        std::cout << "    QBTable - Total records: " << beforeCompactQB << " -> " << testDataQBTable.totalRecordsCount() << std::endl;
+        std::cout << "    QBTable - Active records: " << testDataQBTable.activeRecordsCount() << std::endl;
         
         std::cout << "\n  ✓ All deletion tests passed\n" << std::endl;
     }

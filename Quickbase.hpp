@@ -30,23 +30,6 @@ namespace db
         COLUMN3
     };
 
-    /**
-        Convert string column name to ColumnType enum
-        @param columnName: Column name as string ("column0", "column1", etc.)
-        @return: ColumnType enum value, or std::nullopt if invalid
-    */
-    inline std::optional<ColumnType> stringToColumnType(std::string_view columnName) noexcept
-    {
-        if (columnName == "column0")
-            return ColumnType::COLUMN0;
-        if (columnName == "column1")
-            return ColumnType::COLUMN1;
-        if (columnName == "column2")
-            return ColumnType::COLUMN2;
-        if (columnName == "column3")
-            return ColumnType::COLUMN3;
-        return std::nullopt;
-    }
     // QBTable class represents a collection of records with optimized indexing and deletion handling
     class QBTable
     {
@@ -58,9 +41,9 @@ namespace db
         std::unordered_map<uint, size_t> pkIndex_;
         // secondaryIndexedColumns_ - track which non-pk columns are indexed
         std::set<ColumnType> secondaryIndexedColumns_;
-        // IndexKey - typed key for secondary indexes
+        // IndexKey - typed key for indexes
         using IndexKey = std::variant<uint, long, std::string>;
-        // secondaryIndexes_ - generic index for secondary columns: (columnID, IndexKey) -> record indices
+        // secondaryIndexes_ - index for secondary-indexed columns: (columnID, IndexKey) -> record indices
         std::map<std::pair<ColumnType, IndexKey>, std::vector<size_t>> secondaryIndexes_;
 
         // helper methods for indexing
@@ -88,19 +71,37 @@ namespace db
 
         // core operations
         void addRecord(const QBRecord &record);
-        bool deleteRecordByID(const uint &id, const bool hardDelete = false);
+        bool deleteRecordByID(uint id, bool hardDelete = false);
         void compactRecords();
         std::vector<QBRecord> findMatching(ColumnType column, std::string_view matchString) const;
         // backward-compatible version using string column name
         std::vector<QBRecord> findMatching(std::string_view columnName, std::string_view matchString) const;
 
         // query info
-        size_t activeRecordCount() const noexcept;
-        size_t totalRecordCount() const noexcept;
+        size_t activeRecordsCount() const noexcept;
+        size_t totalRecordsCount() const noexcept;
         
 
         // direct access for testing
         const std::vector<QBRecord> &getRecords() const;
         const std::vector<bool> &getDeletedFlags() const;
     };
+
+    /**
+        Convert string column name to ColumnType enum
+        @param columnName: Column name as string ("column0", "column1", etc.)
+        @return: ColumnType enum value, or std::nullopt if invalid
+    */
+    inline std::optional<ColumnType> stringToColumnType(std::string_view columnName) noexcept
+    {
+        if (columnName == "column0")
+            return ColumnType::COLUMN0;
+        if (columnName == "column1")
+            return ColumnType::COLUMN1;
+        if (columnName == "column2")
+            return ColumnType::COLUMN2;
+        if (columnName == "column3")
+            return ColumnType::COLUMN3;
+        return std::nullopt;
+    }
 }

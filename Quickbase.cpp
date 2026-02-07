@@ -56,10 +56,10 @@ namespace db
      */
     void QBTable::rebuildSecondaryIndexForColumn(ColumnType columnID)
     {
-        // Remove any existing entries for this column
+        // remove any existing entries for this column
         removeSecondaryIndexForColumn(columnID);
 
-        // Rebuild index from scratch
+        // rebuild index from scratch
         for (size_t i = 0; i < records_.size(); ++i)
         {
             if (!deleted_[i])
@@ -139,7 +139,7 @@ namespace db
 
     /**
      * Create an index on a specific column
-     * Note: Column0 (primary key) is always indexed for O(1) performance
+     * Important!!! - Column0 (primary key) is always indexed for O(1) performance
      * Other columns can be optionally indexed for faster queries
      * Future queries on indexed columns will use the index
      */
@@ -158,7 +158,7 @@ namespace db
 
     /**
      * Drop an index on a specific column
-     * Note: Column0 (primary key) cannot be dropped - it's always indexed
+     * Important!!! - Column0 (PK) cannot be dropped - it's always indexed
      * Frees memory for secondary indexes
      */
     void QBTable::dropIndex(ColumnType columnID)
@@ -207,7 +207,7 @@ namespace db
      * Delete a record by its unique ID (column0)
      * O(1) operation using primary key index and soft deletion
      */
-    bool QBTable::deleteRecordByID(const uint &id, const bool hardDelete)
+    bool QBTable::deleteRecordByID(uint id, bool hardDelete)
     {
         // 1. Lookup record index via primary key
         auto pkIt = pkIndex_.find(id);
@@ -216,7 +216,7 @@ namespace db
 
         size_t recordIdx = pkIt->second;
 
-        // Already deleted (for soft delete)
+        // already deleted (for soft delete)
         if (!hardDelete && deleted_[recordIdx])
             return false;
 
@@ -227,9 +227,9 @@ namespace db
             deleted_[recordIdx] = true;
 
             // remove from PK index
-            pkIt->second = 0;
+            pkIndex_.erase(pkIt);
 
-            // Remove from secondary indexes
+            // remove from secondary indexes
             for (auto it = secondaryIndexes_.begin(); it != secondaryIndexes_.end();)
             {
                 auto &indices = it->second;
@@ -240,20 +240,19 @@ namespace db
                     ++it;
             }
         }
-        else // Hard delete
+        else // hard delete
         {
-            // 2b. Hard delete
             size_t lastIdx = records_.size() - 1;
 
             // swap the record to delete with the last record
             std::swap(records_[recordIdx], records_[lastIdx]);
             std::swap(deleted_[recordIdx], deleted_[lastIdx]);
 
-            // Remove last record
+            // remove last record
             records_.pop_back();
             deleted_.pop_back();
 
-            // Rebuild all indexes for safety
+            // rebuild all indexes for safety
             rebuildPrimaryKeyIndex();
             for (const ColumnType colID : secondaryIndexedColumns_)
                 rebuildSecondaryIndexForColumn(colID);
@@ -269,8 +268,6 @@ namespace db
      */
     std::vector<QBRecord> QBTable::findMatching(ColumnType columnID, std::string_view matchString) const
     {
-        //uint8_t columnID = static_cast<uint8_t>(column);
-
         // handle queries on primary key - COLUMN0
         if (columnID == ColumnType::COLUMN0)
         {
@@ -348,10 +345,10 @@ namespace db
     /**
      * Get count of active (non-deleted) records
      */
-    size_t QBTable::activeRecordCount() const noexcept
+    size_t QBTable::activeRecordsCount() const noexcept
     {
         size_t count = 0;
-        for (const bool& del : deleted_) 
+        for (bool del : deleted_) 
             if (!del) count++;
         return count;
     }
@@ -359,7 +356,7 @@ namespace db
     /**
      * Get total record count including deleted records
      */
-    size_t QBTable::totalRecordCount() const noexcept
+    size_t QBTable::totalRecordsCount() const noexcept
     {
         return records_.size();
     }
