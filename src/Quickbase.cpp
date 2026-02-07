@@ -100,7 +100,7 @@ namespace db
             const QBRecord &rec = records_[i];
             bool matches = false;
 
-            switch (static_cast<ColumnType>(columnID))
+            switch (columnID)
             {
             case ColumnType::COLUMN0:
                 // primary key is unique - return immediately on first match
