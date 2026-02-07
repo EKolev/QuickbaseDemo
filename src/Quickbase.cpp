@@ -22,14 +22,14 @@ namespace db
         const QBRecord &rec = records_[recordIdx];
         switch (columnID)
         {
-        case ColumnType::COLUMN0:
-            return rec.column0;
         case ColumnType::COLUMN1:
             return rec.column1;
         case ColumnType::COLUMN2:
             return rec.column2;
         case ColumnType::COLUMN3:
             return rec.column3;
+        case ColumnType::COLUMN0:
+            // Primary key column is always indexed separately - should never reach here
         }
         return std::string{};
     }
