@@ -24,7 +24,7 @@ namespace db
     // table column identifier enum
     enum class ColumnType : uint8_t
     {
-        COLUMN0, // assumed to be the pk column
+        COLUMN0, // assumed to be the primary key column
         COLUMN1,
         COLUMN2,
         COLUMN3
@@ -38,7 +38,7 @@ namespace db
         std::vector<QBRecord> records_;
         // deleted_ - parallel vector to records_ for soft deletion tracking
         std::vector<bool> deleted_;
-        // pkIndex_ - pk indexing
+        // pkIndex_ - primary key  indexing
         std::unordered_map<uint, size_t> pkIndex_;
         // secondaryIndexedColumns_ - track which non-pk columns are indexed
         std::set<ColumnType> secondaryIndexedColumns_;
