@@ -57,23 +57,23 @@ namespace db
         // pkIndex_ - pk indexing
         std::unordered_map<uint, size_t> pkIndex_;
         // secondaryIndexedColumns_ - track which non-pk columns are indexed
-        std::set<uint8_t> secondaryIndexedColumns_;
+        std::set<ColumnType> secondaryIndexedColumns_;
         // IndexKey - typed key for secondary indexes
         using IndexKey = std::variant<uint, long, std::string>;
         // secondaryIndexes_ - generic index for secondary columns: (columnID, IndexKey) -> record indices
-        std::map<std::pair<uint8_t, IndexKey>, std::vector<size_t>> secondaryIndexes_;
+        std::map<std::pair<ColumnType, IndexKey>, std::vector<size_t>> secondaryIndexes_;
 
         // helper methods for indexing
-        IndexKey getColumnIndexKey(size_t recordIdx, uint8_t columnID) const;
+        IndexKey getColumnIndexKey(size_t recordIdx, ColumnType columnID) const;
         void rebuildPrimaryKeyIndex();
-        void rebuildSecondaryIndexForColumn(uint8_t columnID);
-        void removeSecondaryIndexForColumn(uint8_t columnID);
+        void rebuildSecondaryIndexForColumn(ColumnType columnID);
+        void removeSecondaryIndexForColumn(ColumnType columnID);
         // kept private to prevent accidental linear scans - only used internally for non-indexed queries
-        std::vector<QBRecord> linearScan(uint8_t columnID, std::string_view matchString) const;
+        std::vector<QBRecord> linearScan(ColumnType columnID, std::string_view matchString) const;
 
     public:
         QBTable() = default;
-        // allow only move on QBTables objects, forbid copying to prevent expensive deep copies
+        // allow only move operations on QBTables objects, forbid copying to prevent expensive deep copies
         QBTable(const QBTable &) = delete;
         QBTable &operator=(const QBTable &) = delete;
         // move operations
@@ -82,9 +82,9 @@ namespace db
         ~QBTable() = default;
 
         // index management - create/drop indexes on demand
-        void createIndex(uint8_t columnID);
-        void dropIndex(uint8_t columnID);
-        bool isColumnIndexed(uint8_t columnID) const;
+        void createIndex(ColumnType columnID);
+        void dropIndex(ColumnType columnID);
+        bool isColumnIndexed(ColumnType columnID) const;
 
         // core operations
         void addRecord(const QBRecord &record);

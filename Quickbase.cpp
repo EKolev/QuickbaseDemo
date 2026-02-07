@@ -10,7 +10,7 @@ namespace db
      * Convert column value to string for generic indexing
      * This allows us to use a single index for all column types
      */
-    QBTable::IndexKey QBTable::getColumnIndexKey(size_t recordIdx, uint8_t columnID) const
+    QBTable::IndexKey QBTable::getColumnIndexKey(size_t recordIdx, ColumnType columnID) const
     {
         // bounds check
         if (recordIdx >= records_.size())
@@ -20,7 +20,7 @@ namespace db
             return std::string{};
 
         const QBRecord &rec = records_[recordIdx];
-        switch (static_cast<ColumnType>(columnID))
+        switch (columnID)
         {
         case ColumnType::COLUMN0:
             return rec.column0;
@@ -54,7 +54,7 @@ namespace db
      * Rebuild the index for a specific secondary column
      * Called when createIndex() is invoked for non-PK columns
      */
-    void QBTable::rebuildSecondaryIndexForColumn(uint8_t columnID)
+    void QBTable::rebuildSecondaryIndexForColumn(ColumnType columnID)
     {
         // Remove any existing entries for this column
         removeSecondaryIndexForColumn(columnID);
@@ -73,7 +73,7 @@ namespace db
     /**
      * Remove all secondary index entries for a specific column
      */
-    void QBTable::removeSecondaryIndexForColumn(uint8_t columnID)
+    void QBTable::removeSecondaryIndexForColumn(ColumnType columnID)
     {
         auto it = secondaryIndexes_.begin();
         while (it != secondaryIndexes_.end())
@@ -88,7 +88,7 @@ namespace db
     /**
      * Linear scan fallback for non-indexed columns
      */
-    std::vector<QBRecord> QBTable::linearScan(uint8_t columnID, std::string_view matchString) const
+    std::vector<QBRecord> QBTable::linearScan(ColumnType columnID, std::string_view matchString) const
     {
         std::vector<QBRecord> result;
 
@@ -143,10 +143,10 @@ namespace db
      * Other columns can be optionally indexed for faster queries
      * Future queries on indexed columns will use the index
      */
-    void QBTable::createIndex(uint8_t columnID)
+    void QBTable::createIndex(ColumnType columnID)
     {
         // Column0 is always indexed - can't drop it
-        if (columnID == static_cast<uint8_t>(ColumnType::COLUMN0))
+        if (columnID == ColumnType::COLUMN0)
             return;
 
         if (secondaryIndexedColumns_.contains(columnID))
@@ -161,10 +161,10 @@ namespace db
      * Note: Column0 (primary key) cannot be dropped - it's always indexed
      * Frees memory for secondary indexes
      */
-    void QBTable::dropIndex(uint8_t columnID)
+    void QBTable::dropIndex(ColumnType columnID)
     {
         // Column0 is always indexed - can't drop it
-        if (columnID == static_cast<uint8_t>(ColumnType::COLUMN0))
+        if (columnID == ColumnType::COLUMN0)
             return;
 
         secondaryIndexedColumns_.erase(columnID);
@@ -174,10 +174,10 @@ namespace db
     /**
      * Check if a column is indexed
      */
-    bool QBTable::isColumnIndexed(uint8_t columnID) const
+    bool QBTable::isColumnIndexed(ColumnType columnID) const
     {
         // Column0 (primary key) is always indexed
-        if (columnID == static_cast<uint8_t>(ColumnType::COLUMN0))
+        if (columnID == ColumnType::COLUMN0)
             return true;
         return secondaryIndexedColumns_.contains(columnID);
     }
@@ -196,7 +196,7 @@ namespace db
         pkIndex_[record.column0] = idx;
 
         // Update secondary indexes
-        for (uint8_t columnID : secondaryIndexedColumns_)
+        for (ColumnType columnID : secondaryIndexedColumns_)
         {
             IndexKey key = getColumnIndexKey(idx, columnID);
             secondaryIndexes_[{columnID, key}].push_back(idx);
@@ -255,7 +255,7 @@ namespace db
 
             // Rebuild all indexes for safety
             rebuildPrimaryKeyIndex();
-            for (uint8_t colID : secondaryIndexedColumns_)
+            for (const ColumnType colID : secondaryIndexedColumns_)
                 rebuildSecondaryIndexForColumn(colID);
         }
 
@@ -267,12 +267,12 @@ namespace db
      * Uses primary key index for COLUMN0 O(1), secondary indexes for other columns O(log n),
      * or falls back to linear scan for non-indexed columns
      */
-    std::vector<QBRecord> QBTable::findMatching(ColumnType column, std::string_view matchString) const
+    std::vector<QBRecord> QBTable::findMatching(ColumnType columnID, std::string_view matchString) const
     {
-        uint8_t columnID = static_cast<uint8_t>(column);
+        //uint8_t columnID = static_cast<uint8_t>(column);
 
         // handle queries on primary key - COLUMN0
-        if (column == ColumnType::COLUMN0)
+        if (columnID == ColumnType::COLUMN0)
         {
             uint matchValue = 0;
             auto convResult = std::from_chars(matchString.data(), matchString.data() + matchString.size(), matchValue);
@@ -295,7 +295,7 @@ namespace db
         {
             // Build typed key from matchString depending on column type
             IndexKey lookupKey;
-            switch (column)
+            switch (columnID)
             {
             case ColumnType::COLUMN1:
             case ColumnType::COLUMN3:
@@ -393,7 +393,7 @@ namespace db
 
         // Rebuild secondary indexes
         secondaryIndexes_.clear();
-        for (uint8_t columnID : secondaryIndexedColumns_)
+        for (const ColumnType columnID : secondaryIndexedColumns_)
         {
             rebuildSecondaryIndexForColumn(columnID);
         }

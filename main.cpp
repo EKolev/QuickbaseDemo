@@ -113,7 +113,7 @@ void runBenchmarks()
         qbTable.addRecord(dbRec);
     }
     // create index for column2 
-    qbTable.createIndex(static_cast<uint8_t>(db::ColumnType::COLUMN2));
+    qbTable.createIndex(db::ColumnType::COLUMN2);
     
     std::cout << "  - Records in base QB database implementation: " << baseData.size() << std::endl;
     std::cout << "  - QBTable Active Records: " << qbTable.activeRecordCount() << std::endl;
@@ -246,8 +246,8 @@ void runBenchmarks()
             db::QBRecord dbRec = {rec.column0, rec.column1, rec.column2, rec.column3};
             testDataQBTable.addRecord(dbRec);
         }
-        testDataQBTable.createIndex(static_cast<uint8_t>(db::ColumnType::COLUMN0));
-        testDataQBTable.createIndex(static_cast<uint8_t>(db::ColumnType::COLUMN2));
+        testDataQBTable.createIndex(db::ColumnType::COLUMN0);
+        testDataQBTable.createIndex(db::ColumnType::COLUMN2);
         
         std::cout << "  Initial state (QBTable):" << std::endl;
         auto beforeDeleteQB = testDataQBTable.findMatching(db::ColumnType::COLUMN0, "100");
