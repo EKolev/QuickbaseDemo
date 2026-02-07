@@ -137,15 +137,15 @@ namespace db
      */
     void QBTable::createIndex(ColumnType columnID)
     {
-        // Column0 is always indexed - can't drop it
-        if (columnID == ColumnType::COLUMN0)
+        // if column is already indexed, or is primary key
+        if (columnID == ColumnType::COLUMN0 || secondaryIndexedColumns_.contains(columnID))
             return;
+        else{
+            secondaryIndexedColumns_.insert(columnID);
+            rebuildSecondaryIndexForColumn(columnID);
+        }
 
-        if (secondaryIndexedColumns_.contains(columnID))
-            return; // Index already exists
 
-        secondaryIndexedColumns_.insert(columnID);
-        rebuildSecondaryIndexForColumn(columnID);
     }
 
     /**
@@ -168,7 +168,6 @@ namespace db
      */
     bool QBTable::isColumnIndexed(ColumnType columnID) const
     {
-        // Column0 (primary key) is always indexed
         if (columnID == ColumnType::COLUMN0)
             return true;
         return secondaryIndexedColumns_.contains(columnID);
@@ -176,7 +175,7 @@ namespace db
 
     /**
      * Add a new record to the collection
-     * Updates both primary key index (always) and secondary indexes
+     * Updates both primary key index and secondary indexes
      */
     void QBTable::addRecord(const QBRecord &record)
     {
@@ -196,7 +195,7 @@ namespace db
     }
 
     /**
-     * Delete a record by its unique ID (column0)
+     * Delete a record by its unique ID - primary key column0
      */
     bool QBTable::deleteRecordByID(uint id, bool hardDelete)
     {
@@ -259,7 +258,7 @@ namespace db
      */
     std::vector<QBRecord> QBTable::findMatching(ColumnType columnID, std::string_view matchString) const
     {
-        // handle queries on primary key - COLUMN0
+        // handle queries on primary key
         if (columnID == ColumnType::COLUMN0)
         {
             uint matchValue = 0;
@@ -323,17 +322,6 @@ namespace db
     }
 
     /**
-     * Backward-compatible variant using string column names
-     */
-    std::vector<QBRecord> QBTable::findMatching(std::string_view columnName, std::string_view matchString) const
-    {
-        auto columnOpt = stringToColumnType(columnName);
-        if (!columnOpt.has_value())
-            return {};
-        return findMatching(columnOpt.value(), matchString);
-    }
-
-    /**
      * Get count of active records
      */
     size_t QBTable::activeRecordsCount() const noexcept
@@ -386,21 +374,4 @@ namespace db
             rebuildSecondaryIndexForColumn(columnID);
         }
     }
-
-    /**
-     * Direct access to records for testing
-     */
-    const std::vector<QBRecord> &QBTable::getRecords() const
-    {
-        return records_;
-    }
-
-    /**
-     * Direct access to deletion flags for testing
-     */
-    const std::vector<bool> &QBTable::getDeletedFlags() const
-    {
-        return deleted_;
-    }
-
 }

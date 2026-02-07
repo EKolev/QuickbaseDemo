@@ -75,38 +75,10 @@ namespace db
         bool deleteRecordByID(uint id, bool hardDelete = false);
         void compactRecords();
         std::vector<QBRecord> findMatching(ColumnType column, std::string_view matchString) const;
-        // backward-compatible version using string column name
-        std::vector<QBRecord> findMatching(std::string_view columnName, std::string_view matchString) const;
 
         // query info
         size_t activeRecordsCount() const noexcept;
         size_t totalRecordsCount() const noexcept;
-
-        // direct access for testing
-        const std::vector<QBRecord> &getRecords() const;
-        const std::vector<bool> &getDeletedFlags() const;
     };
 
-    /**
-    * Convert string column name to ColumnType enum
-    * only used to support backward-compatible findMatching with string column names, not intended for general use
-    */
-    inline std::optional<ColumnType> stringToColumnType(std::string_view columnName) noexcept
-    {
-        if (columnName.size() <= 7 || columnName.compare(0, 6, "column") != 0)
-            return std::nullopt;
-        switch (columnName[6])
-        {
-        case '0':
-            return ColumnType::COLUMN0;
-        case '1':
-            return ColumnType::COLUMN1;
-        case '2':
-            return ColumnType::COLUMN2;
-        case '3':
-            return ColumnType::COLUMN3;
-        default:
-            return std::nullopt;
-        }
-    }
 }
