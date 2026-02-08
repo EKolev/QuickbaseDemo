@@ -198,7 +198,7 @@ void runBenchmarks()
         startTimer = steady_clock::now();
         for (int i = 0; i < ITERATIONS; ++i)
         {
-            auto filtered = qbTableDynamic.findMatching("column2", 42L);
+            auto filtered = qbTableDynamic.findMatching("column2", 42);
         }
         elapsed = steady_clock::now() - startTimer;
         timeMs = double(elapsed.count()) * steady_clock::period::num / steady_clock::period::den * 1000;
@@ -271,24 +271,17 @@ void runBenchmarks()
     std::cout << "-" << std::string(76, '-') << std::endl;
 
     {
-        db::QBTable testDataQBTable;
-        for (const auto &rec : baseData)
-        {
-            db::QBRecord dbRec = {rec.column0, rec.column1, rec.column2, rec.column3};
-            testDataQBTable.addRecord(dbRec);
-        }
-        testDataQBTable.createIndex(db::ColumnType::COLUMN2);
-
+        // delete on QBTable
         std::cout << "  Initial state (QBTable):" << std::endl;
-        auto beforeDeleteQB = testDataQBTable.findMatching(db::ColumnType::COLUMN0, "100");
+        auto beforeDeleteQB = qbTable.findMatching(db::ColumnType::COLUMN0, "100");
         std::cout << "    Records with column0=100: " << beforeDeleteQB.size() << std::endl;
         // perform a hard delete
-        bool deletedQB = testDataQBTable.deleteRecordByID(100, true);
+        bool deletedQB = qbTable.deleteRecordByID(100, true);
         std::cout << "  After deleteRecordByID(100):" << std::endl;
         std::cout << "    QBTable: " << (deletedQB ? "SUCCESS" : "FAILED") << std::endl;
 
         // try to find it again
-        auto afterDeleteQB = testDataQBTable.findMatching(db::ColumnType::COLUMN0, "100");
+        auto afterDeleteQB = qbTable.findMatching(db::ColumnType::COLUMN0, "100");
         std::cout << "    QBTable - Records with column0=100: " << afterDeleteQB.size() << std::endl;
 
         // verify
@@ -298,20 +291,53 @@ void runBenchmarks()
         std::vector<uint> idsToDelete = {200, 201, 202, 203, 204};
         for (const uint &id : idsToDelete)
         {
-            testDataQBTable.deleteRecordByID(id);
+            qbTable.deleteRecordByID(id);
         }
 
-        auto allDeletedQB = testDataQBTable.findMatching(db::ColumnType::COLUMN2, "4");
+        auto allDeletedQB = qbTable.findMatching(db::ColumnType::COLUMN2, "4");
         std::cout << "  After deleting records with IDs 200-204:" << std::endl;
         std::cout << "    QBTable - Records with column2=4: " << allDeletedQB.size() << std::endl;
-        std::cout << "    QBTable - Active count: " << testDataQBTable.activeRecordsCount() << " / " << testDataQBTable.totalRecordsCount() << std::endl;
+        std::cout << "    QBTable - Active count: " << qbTable.activeRecordsCount() << " / " << qbTable.totalRecordsCount() << std::endl;
+        // Test compaction
+        size_t beforeCompactQB = qbTable.totalRecordsCount();
+        qbTable.compactRecords();
+        std::cout << "  After compactRecords():" << std::endl;
+        std::cout << "    QBTable - Total records (before compact) -> (after compact): " << beforeCompactQB << " -> " << qbTable.totalRecordsCount() << std::endl;
+        std::cout << "    QBTable - Active records: " << qbTable.activeRecordsCount() << std::endl;
+
+        // delete on QBTableDynamic
+        std::cout << "  Initial state (QBTableDynamic):" << std::endl;
+        auto beforeDeleteQBD = qbTableDynamic.findMatching("id", 100u);
+        std::cout << "    Records with id=100: " << beforeDeleteQBD.size() << std::endl;
+        // perform a hard delete
+        bool deletedQBD = qbTableDynamic.deleteRecordByID(100, true);
+        std::cout << "  After deleteRecordByID(100):" << std::endl;
+        std::cout << "    QBTableDynamic: " << (deletedQBD ? "SUCCESS" : "FAILED") << std::endl;
+
+        // try to find it again
+        auto afterDeleteQBD = qbTableDynamic.findMatching("id", 100u);
+        std::cout << "    QBTableDynamic - Records with id=100: " << afterDeleteQBD.size() << std::endl;
+
+        // verify
+        assert(afterDeleteQBD.size() == 0 && "Record should be deleted (QBTableDynamic)");
+        // soft delete multiple records and test
+        std::vector<uint> idsToDeleteKeys = {200, 201, 202, 203, 204};
+        for (const uint &id : idsToDeleteKeys)
+        {
+            qbTableDynamic.deleteRecordByID(id);
+        }
+
+        auto allDeletedQBD = qbTableDynamic.findMatching("column2", 4L);
+        std::cout << "  After deleting records with IDs 200-204:" << std::endl;
+        std::cout << "    QBTableDynamic - Records with column2=4: " << allDeletedQBD.size() << std::endl;
+        std::cout << "    QBTableDynamic - Active count: " << qbTableDynamic.activeRecordsCount() << " / " << qbTableDynamic.totalRecordsCount() << std::endl;
 
         // Test compaction
-        size_t beforeCompactQB = testDataQBTable.totalRecordsCount();
-        testDataQBTable.compactRecords();
+        size_t beforeCompactQBD = qbTableDynamic.totalRecordsCount();
+        qbTableDynamic.compactRecords();
         std::cout << "  After compactRecords():" << std::endl;
-        std::cout << "    QBTable - Total records: " << beforeCompactQB << " -> " << testDataQBTable.totalRecordsCount() << std::endl;
-        std::cout << "    QBTable - Active records: " << testDataQBTable.activeRecordsCount() << std::endl;
+        std::cout << "    QBTableDynamic - Total records (before compact) -> (after compact): " << beforeCompactQBD << " -> " << qbTableDynamic.totalRecordsCount() << std::endl;
+        std::cout << "    QBTableDynamic - Active records: " << qbTableDynamic.activeRecordsCount() << std::endl;
 
         std::cout << "\n  ✓ All deletion tests passed\n"
                   << std::endl;
