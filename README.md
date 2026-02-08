@@ -1,6 +1,6 @@
-# QuickbaseDemo: An In-Memory Database providing implementation for static and dynamic tables
+# QuickbaseDemo: An In-Memory Database 
 
-QuickbaseDemo is a solution written for the take home assignment from Quickbase.
+QuickbaseDemo is a solution written for the take home assignment from Quickbase. It provides implementations for both static and dynamic tables.
 
 ## Build Instructions
 
