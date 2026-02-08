@@ -303,7 +303,7 @@ void runBenchmarks()
         qbTable.compactRecords();
         std::cout << "  After compactRecords():" << std::endl;
         std::cout << "    QBTable - Total records (before compact) -> (after compact): " << beforeCompactQB << " -> " << qbTable.totalRecordsCount() << std::endl;
-        std::cout << "    QBTable - Active records: " << qbTable.activeRecordsCount() << std::endl;
+        std::cout << "    QBTable - Active records: " << qbTable.activeRecordsCount() << "\n" << std::endl;
 
         // delete on QBTableDynamic
         std::cout << "  Initial state (QBTableDynamic):" << std::endl;
