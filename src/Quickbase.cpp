@@ -160,7 +160,7 @@ namespace db
 
     /**
      * Rebuild the primary key index - column0
-     * Used during construction, compact, and addRecord operations
+     * Used during compact, hard delete
      */
     void QBTable::rebuildPrimaryKeyIndex()
     {
@@ -258,14 +258,12 @@ namespace db
 
     /*
      * Create an index on a specific column
-     * Important!!! - Column0 (primary key) is always indexed for O(1) performance
-     * Other columns can be optionally indexed for faster queries
      */
     void QBTable::createIndex(db::ColumnType columnID)
     {
         // if column is already indexed, or is primary key exit
         if (columnID == ColumnType::COLUMN0 || secondaryIndexedColumns_.contains(columnID))
-            return;
+            throw std::runtime_error("Cannot create index on already indexed or primary key column");
         else
         {
             secondaryIndexedColumns_.insert(columnID);
@@ -282,8 +280,7 @@ namespace db
     {
         // Column0 is always indexed - can't drop it
         if (columnID == db::ColumnType::COLUMN0)
-            return;
-
+            throw std::runtime_error("Cannot drop index on primary key column");
         secondaryIndexedColumns_.erase(columnID);
         removeSecondaryIndexForColumn(columnID);
     }
@@ -299,7 +296,7 @@ namespace db
     }
 
     /**
-     * Add a new record to the collection
+     * Add a new record to the table
      * Updates both primary key index and secondary indexes
      */
     void QBTable::addRecord(const db::QBRecord &record)

@@ -3,90 +3,47 @@
 
 namespace db
 {
-    bool QBTableDynamic::addColumn(const std::string &name, db::FieldType defaultValue)
+    /**
+     * Find matching records by column name and corresponding value
+     * Uses primary key index for column "id", secondary indexes for other columns,
+     * or falls back to linear scan for non-indexed columns
+     */
+    std::vector<db::QBRecordDynamic> QBTableDynamic::findMatching(std::string column, db::FieldType value) const
     {
-        if (!columns_.insert(name).second)
-            return false;
+        std::vector<db::QBRecordDynamic> result;
+        // handle queries on primary key
+        if (column == "id")
+        {
+            auto it = pkIndex_.find(std::get<db::uint>(value));
+            if (it != pkIndex_.end() && !deleted_[it->second])
+                result.push_back(records_[it->second]);
+            return result;
+        }
+        // handle queries on non-pk columns - secondery indexed
+        auto idxIt = secondaryIndexes_.find({column, value});
+        if (idxIt != secondaryIndexes_.end())
+        {
+            for (size_t i : idxIt->second)
+                if (!deleted_[i])
+                    result.push_back(records_[i]);
+            return result;
+        }
 
-        // add a new column/field to each record with a default value if not provided
-        for (auto &r : records_)
-            r.fields.emplace(name, defaultValue);
-        return true;
-    }
-
-    void QBTableDynamic::removeColumn(const std::string &name)
-    {
-        columns_.erase(name);
-        secondaryIndexedColumns_.erase(name);
-        secondaryIndexes_.erase({name, {}}); // full cleanup
-
-        for (auto &r : records_)
-            r.fields.erase(name);
-    }
-
-    bool QBTableDynamic::addDerivedColumn(const std::string &name, db::DerivedFunc func)
-    {
-        if (columns_.contains(name))
-            return false; // name conflicts with physical column
-
-        derivedColumns_[name] = func;
-        return true;
-    }
-    FieldType QBTableDynamic::getField(size_t recordIdx, const std::string &column) const
-    {
-        const auto &rec = records_[recordIdx];
-
-        if (auto it = rec.fields.find(column); it != rec.fields.end())
-            return it->second;
-
-        if (auto dit = derivedColumns_.find(column); dit != derivedColumns_.end())
-            return dit->second(rec);
-
-        throw std::runtime_error("Unknown column: " + column);
-    }
-
-    void QBTableDynamic::rebuildSecondaryIndex(const std::string &column)
-    {
+        // Linear scan fallback
         for (size_t i = 0; i < records_.size(); ++i)
         {
-            if (!deleted_[i])
-            {
-                db::FieldType v = getField(i, column);
-                secondaryIndexes_[{column, v}].push_back(i);
-            }
+            if (deleted_[i])
+                continue;
+            auto fIt = records_[i].fields.find(column);
+            if (fIt != records_[i].fields.end() && fIt->second == value)
+                result.push_back(records_[i]);
         }
+
+        return result;
     }
-    void QBTableDynamic::rebuildPrimaryIndex()
-    {
-        pkIndex_.clear();
-        for (size_t i = 0; i < records_.size(); ++i)
-        {
-            if (!deleted_[i])
-                pkIndex_[records_[i].id] = i;
-        }
-    }
-
-    bool QBTableDynamic::addRecord(const db::QBRecordDynamic &record)
-    {
-        // Enforce schema
-        for (const auto &[key, _] : record.fields)
-            if (!columns_.contains(key))
-                return false; // invalid column
-
-        size_t idx = records_.size();
-        records_.push_back(record);
-        deleted_.push_back(false);
-
-        pkIndex_[record.id] = idx;
-
-        for (const auto &col : secondaryIndexedColumns_)
-        {
-            db::FieldType v = getField(idx, col);
-            secondaryIndexes_[{col, v}].push_back(idx);
-        }
-        return true;
-    }
-
+    /**
+     * Delete a record by its unique ID - id
+     */
     bool QBTableDynamic::deleteRecordByID(db::uint id, bool hardDelete)
     {
         auto pkIt = pkIndex_.find(id);
@@ -124,7 +81,7 @@ namespace db
 
             return true;
         }
-        else
+        else // hard delete
         {
             const size_t lastIdx = records_.size() - 1;
 
@@ -151,41 +108,119 @@ namespace db
             return true;
         }
     }
-
-    std::vector<db::QBRecordDynamic> QBTableDynamic::findMatching(std::string column, db::FieldType value) const
+    /**
+     * Add a new column to the table schema
+     * Updates all existing records with the default value for the type if not provided
+     */
+    bool QBTableDynamic::addColumn(const std::string &name, db::FieldType defaultValue)
     {
-        std::vector<db::QBRecordDynamic> result;
-        // handle queries on primary key
-        if (column == "id")
-        {
-            auto it = pkIndex_.find(std::get<db::uint>(value));
-            if (it != pkIndex_.end() && !deleted_[it->second])
-                result.push_back(records_[it->second]);
-            return result;
-        }
+        if (!columns_.insert(name).second)
+            return false;
 
-        auto idxIt = secondaryIndexes_.find({column, value});
-        if (idxIt != secondaryIndexes_.end())
-        {
-            for (size_t i : idxIt->second)
-                if (!deleted_[i])
-                    result.push_back(records_[i]);
-            return result;
-        }
+        // add a new column/field to each record with a default value if not provided
+        for (auto &r : records_)
+            r.fields.emplace(name, defaultValue);
+        return true;
+    }
+    /**
+     * Remove a column from the table schema
+      * Deletes the column/field from all records and removes any associated indexes
+      * Note: This is a destructive operation and should be used with caution as it permanently removes
+     */
+    void QBTableDynamic::removeColumn(const std::string &name)
+    {
+        columns_.erase(name);
+        secondaryIndexedColumns_.erase(name);
+        secondaryIndexes_.erase({name, {}}); // full cleanup
 
-        // Linear scan fallback
+        for (auto &r : records_)
+            r.fields.erase(name);
+    }
+    /**
+     * Add a derived column with a custom computation function
+     * The function takes a record and computes the value for the derived column based on other fields
+     */
+    bool QBTableDynamic::addDerivedColumn(const std::string &name, db::DerivedFunc func)
+    {
+        if (columns_.contains(name))
+            return false; // name conflicts with physical column
+
+        derivedColumns_[name] = func;
+        return true;
+    }
+    /**
+     * Get the value of a column for a specific record, handling both physical and derived columns
+      * This is used internally for indexing and querying
+      * Throws an exception if the column is unknown
+      * Note: For simplicity, this implementation does not cache derived column values - they are computed on demand
+     */
+    FieldType QBTableDynamic::getField(size_t recordIdx, const std::string &column) const
+    {
+        const auto &rec = records_[recordIdx];
+
+        if (auto it = rec.fields.find(column); it != rec.fields.end())
+            return it->second;
+
+        if (auto dit = derivedColumns_.find(column); dit != derivedColumns_.end())
+            return dit->second(rec);
+
+        throw std::runtime_error("Unknown column: " + column);
+    }
+    /**
+     * Rebuild the index for a specific secondary column
+     * Called when createIndex() is invoked for non-PK columns
+     */
+    void QBTableDynamic::rebuildSecondaryIndex(const std::string &column)
+    {
         for (size_t i = 0; i < records_.size(); ++i)
         {
-            if (deleted_[i])
-                continue;
-            auto fIt = records_[i].fields.find(column);
-            if (fIt != records_[i].fields.end() && fIt->second == value)
-                result.push_back(records_[i]);
+            if (!deleted_[i])
+            {
+                db::FieldType v = getField(i, column);
+                secondaryIndexes_[{column, v}].push_back(i);
+            }
         }
-
-        return result;
     }
+   /**
+     * Rebuild the primary key index - id
+     * Used during compact, hard delete
+     */
+    void QBTableDynamic::rebuildPrimaryIndex()
+    {
+        pkIndex_.clear();
+        for (size_t i = 0; i < records_.size(); ++i)
+        {
+            if (!deleted_[i])
+                pkIndex_[records_[i].id] = i;
+        }
+    }
+    /**
+     * Add a new record to the table
+     * Updates both primary key index and secondary indexes
+     */
+    bool QBTableDynamic::addRecord(const db::QBRecordDynamic &record)
+    {
+        // Enforce schema
+        for (const auto &[key, _] : record.fields)
+            if (!columns_.contains(key))
+                return false; // invalid column
 
+        size_t idx = records_.size();
+        records_.push_back(record);
+        deleted_.push_back(false);
+
+        pkIndex_[record.id] = idx;
+
+        for (const auto &col : secondaryIndexedColumns_)
+        {
+            db::FieldType v = getField(idx, col);
+            secondaryIndexes_[{col, v}].push_back(idx);
+        }
+        return true;
+    }
+    /*
+     * Create an index on a specific column
+     */
     void QBTableDynamic::createIndex(const std::string &column)
     {
         if (!columns_.contains(column) && !derivedColumns_.contains(column))
@@ -201,8 +236,9 @@ namespace db
      */
     void QBTableDynamic::dropIndex(const std::string &column)
     {
+        if (column == "id")
+            throw std::runtime_error("Cannot drop index on primary key column");
         secondaryIndexedColumns_.erase(column);
-
         auto it = secondaryIndexes_.begin();
         while (it != secondaryIndexes_.end())
         {
@@ -219,7 +255,7 @@ namespace db
     {
         // static_cast to size_t to avoid signed/unsigned comparison warnings
         return static_cast<size_t>(std::count_if(deleted_.begin(), deleted_.end(), [](bool del) -> bool
-                             { return !del; }));
+                                                 { return !del; }));
     }
     /**
      * Get total record count including deleted records
