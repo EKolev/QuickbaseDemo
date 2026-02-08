@@ -107,6 +107,7 @@ endif()
 add_executable(qbtable_main
     src/quickbase_tests.cpp
     src/Quickbase.cpp
+    src/Quickbase_dynamic.cpp
 )
 
 # Set output directory

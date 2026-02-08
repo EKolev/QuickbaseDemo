@@ -1,6 +1,6 @@
-# QBTable: An In-Memory Database with Adaptive Indexing
+# QuickbaseDemo: An In-Memory Database providing implementation for static and dynamic tables
 
-QBTable is a solution written for the take home assignment from Quickbase.
+QuickbaseDemo is a solution written for the take home assignment from Quickbase.
 
 ## Build Instructions
 

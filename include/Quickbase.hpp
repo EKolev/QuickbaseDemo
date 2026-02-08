@@ -6,53 +6,36 @@
 #include <string>
 #include <string_view>
 #include <variant>
+#include "./Quickbase_types.hpp"
 
-// Quickbase database declarations
+// Quickbase static database declarations
 namespace db
 {
-    using uint = unsigned int;
-    // QBTable record
-    struct QBRecord
-    {
-        uint column0; // unique id column
-        std::string column1;
-        long column2;
-        std::string column3;
-    };
-
-    // table column identifier enum
-    enum class ColumnType : uint8_t
-    {
-        COLUMN0, // assumed to be the primary key column
-        COLUMN1,
-        COLUMN2,
-        COLUMN3
-    };
 
     // QBTable class represents a collection of records with optimized indexing and deletion handling
     class QBTable
     {
     private:
         // container memebers
-        std::vector<QBRecord> records_;
+        std::vector<db::QBRecord> records_;
         // deleted_ - parallel vector to records_ for soft deletion tracking
         std::vector<bool> deleted_;
+
+        // table indexing members
         // pkIndex_ - primary key  indexing
-        std::unordered_map<uint, size_t> pkIndex_;
+        std::unordered_map<db::uint, size_t> pkIndex_;
         // secondaryIndexedColumns_ - track which non-pk columns are indexed
-        std::set<ColumnType> secondaryIndexedColumns_;
-        // IndexKey - typed key for secondary indexed columns, supports multiple types of columns
-        using IndexKey = std::variant<uint, long, std::string>;
-        // secondaryIndexes_ - index for secondary-indexed columns: (columnID, IndexKey) -> record indices
-        std::map<std::pair<ColumnType, IndexKey>, std::vector<size_t>> secondaryIndexes_;
+        std::set<db::ColumnType> secondaryIndexedColumns_;
+        // secondaryIndexes_ - index for secondary-indexed columns: (columnID, FieldType) -> record indices
+        std::map<std::pair<db::ColumnType, db::FieldType>, std::vector<size_t>> secondaryIndexes_;
 
         // helper methods for indexing
-        IndexKey getColumnIndexKey(size_t recordIdx, ColumnType columnID) const;
+        db::FieldType getColumnField(size_t recordIdx, db::ColumnType columnID) const;
         void rebuildPrimaryKeyIndex();
-        void rebuildSecondaryIndexForColumn(ColumnType columnID);
-        void removeSecondaryIndexForColumn(ColumnType columnID);
+        void rebuildSecondaryIndexForColumn(db::ColumnType columnID);
+        void removeSecondaryIndexForColumn(db::ColumnType columnID);
         // kept private to prevent accidental linear scans - only used internally for non-indexed queries
-        std::vector<QBRecord> linearScan(ColumnType columnID, std::string_view matchString) const;
+        std::vector<db::QBRecord> linearScan(db::ColumnType columnID, std::string_view matchString) const;
 
     public:
         QBTable() = default;
@@ -65,17 +48,17 @@ namespace db
         ~QBTable() = default;
 
         // index management - create/drop indexes on demand
-        void createIndex(ColumnType columnID);
-        void dropIndex(ColumnType columnID);
-        bool isColumnIndexed(ColumnType columnID) const;
+        void createIndex(db::ColumnType columnID);
+        void dropIndex(db::ColumnType columnID);
+        bool isColumnIndexed(db::ColumnType columnID) const;
 
         // core operations
         void addRecord(const QBRecord &record);
-        bool deleteRecordByID(uint id, bool hardDelete = false);
+        bool deleteRecordByID(db::uint id, bool hardDelete = false);
         void compactRecords();
-        std::vector<QBRecord> findMatching(ColumnType column, std::string_view matchString) const;
+        std::vector<QBRecord> findMatching(db::ColumnType column, std::string_view matchString) const;
 
-        // query info
+        // get record counts
         size_t activeRecordsCount() const noexcept;
         size_t totalRecordsCount() const noexcept;
     };
